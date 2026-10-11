@@ -1,0 +1,100 @@
+name: ridm-auth
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ridm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ridm
+      POSTGRES_USER: ridm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ridm_secret_postgres_pass_2026}
+      RIDM_MIGRATOR_USER: ridm_migrator
+      RIDM_MIGRATOR_PASSWORD: ${RIDM_MIGRATOR_PASSWORD:-ridm_migrator_pass_2026}
+      RIDM_APP_USER: ridm_app
+      RIDM_APP_PASSWORD: ${RIDM_APP_PASSWORD:-ridm_app_pass_2026}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init-app-role.sh:/docker-entrypoint-initdb.d/10-app-role.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ridm -d ridm"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - ridm-net
+
+  valkey:
+    image: valkey/valkey:9.1.2-alpine3.24
+    container_name: ridm-valkey
+    restart: unless-stopped
+    command: >
+      valkey-server --appendonly no --save 60 1000 --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - valkeydata:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - ridm-net
+
+  migrate:
+    image: ${RIDM_IMAGE:-ghcr.io/zerosandonesllc/ridm:0.3.0}
+    container_name: ridm-migrate
+    command: ["migrate"]
+    environment:
+      DATABASE_URL: postgres://${RIDM_MIGRATOR_USER:-ridm_migrator}:${RIDM_MIGRATOR_PASSWORD:-ridm_migrator_pass_2026}@postgres:5432/ridm
+      REDIS_URL: redis://valkey:6379
+      PUBLIC_URL: ${PUBLIC_URL:-https://auth.dvlpid.my.id}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - ridm-net
+
+  auth:
+    image: ${RIDM_IMAGE:-ghcr.io/zerosandonesllc/ridm:0.3.0}
+    container_name: ridm-auth
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${RIDM_APP_USER:-ridm_app}:${RIDM_APP_PASSWORD:-ridm_app_pass_2026}@postgres:5432/ridm
+      REDIS_URL: redis://valkey:6379
+      PUBLIC_URL: ${PUBLIC_URL:-https://auth.dvlpid.my.id}
+      BIND_ADDR: 0.0.0.0:8080
+      MASTER_KEY: ${MASTER_KEY:?MASTER_KEY is required}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,::1,172.16.0.0/12,192.168.0.0/16,10.0.0.0/8}
+      COOKIE_SECURE: "true"
+      LOG_FORMAT: json
+      RUST_LOG: info
+      MIGRATE_ON_START: "false"
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@dvlpid.my.id}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-BpsMempawah-Secure-2026!}
+      BOOTSTRAP_SAMPLE_CLIENT: "false"
+    ports:
+      - "${PORT:-8096}:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/ridm-api", "--healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - ridm-net
+
+volumes:
+  pgdata:
+  valkeydata:
+
+networks:
+  ridm-net:
+    name: ridm-network
