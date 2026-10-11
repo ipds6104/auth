@@ -4,6 +4,7 @@ Sync users and pegawais from SIPEDAS (MySQL: sikendis) to rIDM (Tenant: bps)
 Preserving bcrypt password hashes so existing passwords work seamlessly.
 """
 
+import os
 import subprocess
 import json
 import re
@@ -11,13 +12,13 @@ import sys
 import urllib.request
 import urllib.error
 
-RIDM_URL = "http://127.0.0.1:8096"
-RIDM_TENANT = "bps"
-RIDM_TOKEN = "rpat_gcc6VviV2-Wcif7zVa0bJcToLRHAzXgENo8DfGlKqVw"
-MYSQL_CONTAINER = "h139vp1fyu5dz7sgnq6wg984"
-MYSQL_USER = "mysql"
-MYSQL_PASS = "wH4Q8Wv1PIslZPY0thf1F1PqbiveKcEFnmweBPvUKMZcjSClIraDTd9JcAXUyzQa"
-MYSQL_DB = "sikendis"
+RIDM_URL = os.environ.get("RIDM_URL", "http://127.0.0.1:8096")
+RIDM_TENANT = os.environ.get("RIDM_TENANT", "bps")
+RIDM_TOKEN = os.environ.get("RIDM_ADMIN_TOKEN", "rpat_gcc6VviV2-Wcif7zVa0bJcToLRHAzXgENo8DfGlKqVw")
+MYSQL_CONTAINER = os.environ.get("DOKTERV_DB_CONTAINER", "h139vp1fyu5dz7sgnq6wg984")
+MYSQL_USER = os.environ.get("DOKTERV_DB_USER", "mysql")
+MYSQL_PASS = os.environ.get("DOKTERV_DB_PASSWORD", "wH4Q8Wv1PIslZPY0thf1F1PqbiveKcEFnmweBPvUKMZcjSClIraDTd9JcAXUyzQa")
+MYSQL_DB = os.environ.get("DOKTERV_DB_NAME", "sikendis")
 
 def get_sikendis_users():
     sql = """
