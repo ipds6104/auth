@@ -78,6 +78,7 @@ Seluruh **37 pengguna** dan **36 pegawai** dari aplikasi SIPEDAS / DOKTER-V (`ad
 * **Session & Cache:** Valkey 9 (Redis compatible)
 * **Frontend UI:** Next.js 16 Static Export (terkompilasi langsung di dalam binary rIDM)
 * **Reverse Proxy:** Traefik (`coolify-proxy`) & Cloudflare Tunnel
+* **Keamanan Enterprise:** Rate Limiting (300 req/min), HSTS 2 Tahun, Breached Password Check (HIBP API), Trusted Proxies CIDR, dan Argon2id hashing.
 
 ---
 
@@ -92,25 +93,28 @@ docker logs -f ridm-auth
 
 # Menjalankan sinkronisasi ulang data pegawai dari database SIPEDAS
 ./scripts/sync_sikendis_to_ridm.py
+
+# Menjalankan backup database manual
+./scripts/backup_db.sh
 ```
+
+> **Automated Backup:** Cron job aktif setiap hari pukul 02:00 WIB (`/home/server/backups/ridm/`) dengan retensi rolling 14 hari.
 
 ---
 
-## 📚 Menghubungkan Aplikasi Baru (Relying Party / SP)
+## 📱 Client & Relying Party Terdaftar
 
-### Contoh OIDC Client (Laravel Socialite):
-```php
-// config/services.php
-'ridm' => [
-    'client_id' => env('RIDM_CLIENT_ID'),
-    'client_secret' => env('RIDM_CLIENT_SECRET'),
-    'redirect' => env('APP_URL') . '/auth/callback',
-    'base_url' => 'https://auth.dvlpid.my.id/t/bps',
-],
-```
+| Client ID | Tipe | Protokol | Keterangan |
+|---|---|---|---|
+| `sipedas-app` | Web (Confidential) | OIDC (PKCE) | DOKTER-V SIPEDAS Mempawah (`admin.dvlpid.my.id`) |
+| `propylon-gateway` | SAML SP | SAML 2.0 | Propylon Gateway Control Plane (`mcp.dvlpid.my.id`) |
+| `ridm-account-console` | SPA (Public) | OIDC | Portal Profil Mandiri Pegawai (`/account/`) |
+| `ridm-admin-console` | SPA (Public) | OIDC | Konsol Administrasi Tenant & IdP (`/console/`) |
 
-### Contoh SAML Service Provider:
-1. Buka Admin Console di `https://auth.dvlpid.my.id/console/`
-2. Pilih Tenant `bps` ➔ Menu **SAML** ➔ **New Service Provider**
-3. Masukkan Entity ID dan ACS URL aplikasi Anda, atau unggah file Metadata SP.
-4. Simpan, dan aplikasi langsung terhubung secara SSO!
+---
+
+## 📚 Panduan Integrasi Aplikasi Cabang & RBAC
+
+Untuk menghubungkan aplikasi baru (Laravel Filament, Next.js, FastAPI, Go) dengan standar **Application-Managed RBAC** (aplikasi memegang kendali penuh atas rolenya sendiri):
+
+👉 Baca panduan lengkap di **[docs/APPLICATION_INTEGRATION_GUIDE.md](docs/APPLICATION_INTEGRATION_GUIDE.md)**

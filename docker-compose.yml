@@ -75,6 +75,11 @@ services:
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@dvlpid.my.id}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-BpsMempawah-Secure-2026!}
       BOOTSTRAP_SAMPLE_CLIENT: "false"
+      RATE_LIMITS: "true"
+      RATE_LIMIT_IP_PER_MINUTE: "300"
+      HSTS_MAX_AGE: "63072000"
+      DOCS_ENABLED: "false"
+      BREACH_CHECK_URL: "https://api.pwnedpasswords.com/range/"
     ports:
       - "${PORT:-8096}:8080"
     depends_on:
